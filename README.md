@@ -54,12 +54,6 @@ Sistema completo de gestión de recursos humanos desarrollado con Next.js, TypeS
 - Sesiones seguras con NextAuth.js
 - Contraseñas hasheadas con bcrypt
 
-## 🚀 Inicio Rápido
-
-Para instrucciones detalladas de instalación y configuración, consulta el archivo:
-
-**📄 [INSTRUCCIONES_INSTALACION_LOCAL.md](./INSTRUCCIONES_INSTALACION_LOCAL.md)**
-
 ### Resumen Rápido
 
 ```bash
@@ -84,7 +78,7 @@ yarn dev
 
 **Administrador:**
 - Email: `admin@tugente.com`
-- Contraseña: `Admin123!`
+- Contraseña: `admin123`
 
 ## 🛠️ Stack Tecnológico
 
@@ -208,15 +202,7 @@ yarn prisma studio
 - ✅ Validación de datos en servidor
 - ✅ Sanitización de inputs
 
-## 📄 Licencia
-
-Este proyecto es privado y confidencial.
-
 ## 👨‍💻 Desarrollo
 
-Desarrollado con ❤️ usando Next.js y TypeScript
+Desarrollado usando Next.js y TypeScript
 
----
-
-**Versión:** 1.0.0  
-**Última actualización:** Noviembre 2025
