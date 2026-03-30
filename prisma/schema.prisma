@@ -1,0 +1,279 @@
+// Schema para TuGente - Sistema de Gestión de RRHH
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// Modelo de usuarios para autenticación
+model User {
+  id                  String    @id @default(cuid())
+  name                String?
+  email               String    @unique
+  emailVerified       DateTime?
+  password            String?
+  image               String?
+  role                Role      @default(PERSONAL)
+  mustChangePassword  Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  accounts Account[]
+  sessions Session[]
+  employee Employee?
+  
+  @@map("users")
+}
+
+// Roles del sistema
+enum Role {
+  ADMIN
+  PERSONAL
+}
+
+// Tablas para NextAuth
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// Modelo de departamentos
+model Department {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  manager     String?
+  location    String?
+  budget      Float?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  employees   Employee[]
+  
+  @@map("departments")
+}
+
+// Modelo de empleados
+model Employee {
+  id            String    @id @default(cuid())
+  userId        String?   @unique
+  employeeId    String    @unique
+  firstName     String
+  lastName      String
+  email         String    @unique
+  phone         String?
+  position      String
+  departmentId  String
+  hireDate      DateTime
+  baseSalary    Float
+  status        EmployeeStatus @default(ACTIVE)
+  deactivatedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  user              User?              @relation(fields: [userId], references: [id])
+  department        Department         @relation(fields: [departmentId], references: [id])
+  timeRecords       TimeRecord[]
+  permissionRequests PermissionRequest[]
+  salaryRecords     SalaryRecord[]
+  payrollItems      PayrollItem[]
+  
+  @@map("employees")
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  TERMINATED
+}
+
+// Registros de tiempo (check-in/out)
+model TimeRecord {
+  id          String    @id @default(cuid())
+  employeeId  String
+  date        DateTime
+  checkIn     DateTime?
+  checkOut    DateTime?
+  hoursWorked Float?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  employee Employee @relation(fields: [employeeId], references: [id])
+  
+  @@unique([employeeId, date])
+  @@map("time_records")
+}
+
+// Solicitudes de permisos
+model PermissionRequest {
+  id          String           @id @default(cuid())
+  employeeId  String
+  type        PermissionType
+  startDate   DateTime
+  endDate     DateTime
+  days        Int
+  reason      String
+  status      PermissionStatus @default(PENDING)
+  adminNotes  String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  employee Employee @relation(fields: [employeeId], references: [id])
+  
+  @@map("permission_requests")
+}
+
+enum PermissionType {
+  VACATION
+  PERSONAL
+  MEDICAL
+  MATERNITY
+  PATERNITY
+}
+
+enum PermissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Registros salariales
+// Prenómina mensual
+model Payroll {
+  id          String        @id @default(cuid())
+  month       Int
+  year        Int
+  status      PayrollStatus @default(DRAFT)
+  totalAmount Float         @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  items       PayrollItem[]
+  
+  @@unique([month, year])
+  @@map("payrolls")
+}
+
+enum PayrollStatus {
+  DRAFT
+  COMPLETED
+  PAID
+}
+
+// Items individuales de la prenómina
+model PayrollItem {
+  id          String   @id @default(cuid())
+  payrollId   String
+  employeeId  String
+  baseSalary  Float
+  bonus       Float    @default(0)
+  deductions  Float    @default(0)
+  hoursWorked Float    @default(0)
+  totalSalary Float
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  payroll  Payroll  @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id])
+  
+  @@unique([payrollId, employeeId])
+  @@map("payroll_items")
+}
+
+// Registros salariales individuales (legacy - mantener para compatibilidad)
+model SalaryRecord {
+  id          String   @id @default(cuid())
+  employeeId  String
+  month       Int
+  year        Int
+  baseSalary  Float
+  bonus       Float    @default(0)
+  deductions  Float    @default(0)
+  hoursWorked Float    @default(0)
+  totalSalary Float
+  isPaid      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  employee Employee @relation(fields: [employeeId], references: [id])
+  
+  @@unique([employeeId, month, year])
+  @@map("salary_records")
+}
+
+// Noticias internas
+model News {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  priority  Priority @default(NORMAL)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("news")
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// Configuración de la empresa
+model CompanySettings {
+  id                String   @id @default(cuid())
+  name              String   @default("TuGente")
+  description       String?
+  address           String?
+  phone             String?
+  email             String?
+  website           String?
+  workingHoursStart String   @default("09:00")
+  workingHoursEnd   String   @default("17:00")
+  vacationDaysYear  Int      @default(15)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("company_settings")
+}
